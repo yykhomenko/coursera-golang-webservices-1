@@ -20,11 +20,11 @@ func main() {
 }
 
 func dirTree(out *os.File, path string, printFiles bool) error {
-	return printDir(out, "", path, printFiles)
+	return printDir(out, path, printFiles)
 }
 
-func printDir(out *os.File, parent, path string, printFiles bool) error {
-	f, err := os.Open(parent + path)
+func printDir(out *os.File, path string, printFiles bool) error {
+	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -35,18 +35,22 @@ func printDir(out *os.File, parent, path string, printFiles bool) error {
 		return err
 	}
 
-	if parent != "" {
-		io.WriteString(out, path)
-		io.WriteString(out, "\n")
-	}
-
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].Name() < files[j].Name()
 	})
 
-	for _, file := range files {
+	for i, file := range files {
+
+		prefix := "├───"
+		if i == len(files)-1 {
+			prefix = "└───"
+		}
+
 		if file.IsDir() {
-			printDir(out, path+string(os.PathSeparator), file.Name(), printFiles)
+			io.WriteString(out, prefix+file.Name())
+			io.WriteString(out, "\n")
+
+			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles)
 		}
 	}
 
