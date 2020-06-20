@@ -20,10 +20,10 @@ func main() {
 }
 
 func dirTree(out *os.File, path string, printFiles bool) error {
-	return printDir(out, path, printFiles)
+	return printDir(out, path, printFiles, 0)
 }
 
-func printDir(out *os.File, path string, printFiles bool) error {
+func printDir(out *os.File, path string, printFiles bool, depth int) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -46,11 +46,15 @@ func printDir(out *os.File, path string, printFiles bool) error {
 			prefix = "└───"
 		}
 
+		for i := 0; i < depth; i++ {
+			prefix = "\t" + prefix
+		}
+
 		if file.IsDir() {
 			io.WriteString(out, prefix+file.Name())
 			io.WriteString(out, "\n")
 
-			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles)
+			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles, depth+1)
 		}
 	}
 
