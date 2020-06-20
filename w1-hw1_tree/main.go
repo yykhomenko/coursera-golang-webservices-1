@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"io"
 	"os"
 )
 
@@ -20,18 +20,32 @@ func main() {
 
 func dirTree(out *os.File, path string, printFiles bool) error {
 
+	return printDir(out, path, printFiles)
+}
+
+func printDir(out *os.File, path string, printFiles bool) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	names, err := f.Readdirnames(0)
+	files, err := f.Readdir(0)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(out, names)
+	io.WriteString(out, f.Name())
+	io.WriteString(out, "\n")
+
+	for _, file := range files {
+		if file.IsDir() {
+			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles)
+		}
+
+		io.WriteString(out, file.Name())
+		io.WriteString(out, "\n")
+	}
 
 	return nil
 }
