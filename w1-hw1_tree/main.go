@@ -18,6 +18,6 @@ func main() {
 	}
 }
 
-func dirTree(out *os.File, path string, files bool) error {
+func dirTree(out *os.File, path string, printFiles bool) error {
 	return errors.New("not implemented yet")
 }
