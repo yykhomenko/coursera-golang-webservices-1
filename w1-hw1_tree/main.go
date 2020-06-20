@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"sort"
 )
 
 func main() {
@@ -19,12 +20,11 @@ func main() {
 }
 
 func dirTree(out *os.File, path string, printFiles bool) error {
-
-	return printDir(out, path, printFiles)
+	return printDir(out, "", path, printFiles)
 }
 
-func printDir(out *os.File, path string, printFiles bool) error {
-	f, err := os.Open(path)
+func printDir(out *os.File, parent, path string, printFiles bool) error {
+	f, err := os.Open(parent + path)
 	if err != nil {
 		return err
 	}
@@ -35,16 +35,19 @@ func printDir(out *os.File, path string, printFiles bool) error {
 		return err
 	}
 
-	io.WriteString(out, f.Name())
-	io.WriteString(out, "\n")
+	if parent != "" {
+		io.WriteString(out, path)
+		io.WriteString(out, "\n")
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+	})
 
 	for _, file := range files {
 		if file.IsDir() {
-			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles)
+			printDir(out, path+string(os.PathSeparator), file.Name(), printFiles)
 		}
-
-		io.WriteString(out, file.Name())
-		io.WriteString(out, "\n")
 	}
 
 	return nil
