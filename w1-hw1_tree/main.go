@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"errors"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 func main() {
@@ -19,4 +16,8 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func dirTree(out *os.File, path string, files bool) error {
+	return errors.New("not implemented yet")
 }
