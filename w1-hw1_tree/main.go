@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"os"
 )
 
@@ -19,5 +19,19 @@ func main() {
 }
 
 func dirTree(out *os.File, path string, printFiles bool) error {
-	return errors.New("not implemented yet")
+
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	names, err := f.Readdirnames(0)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, names)
+
+	return nil
 }
