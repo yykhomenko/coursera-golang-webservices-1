@@ -1,10 +1,74 @@
 package main
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sort"
+	"strconv"
 )
+
+type Node interface {
+	fmt.Stringer
+}
+
+type Dir struct {
+	name     string
+	children []Node
+}
+
+type File struct {
+	name string
+	size int64
+}
+
+func (dir *Dir) String() string {
+	return dir.name
+}
+
+func (file *File) String() string {
+	if file.size == 0 {
+		return file.name + " (empty)"
+	}
+
+	return file.name + " (" + strconv.FormatInt(file.size, 10) + "b)"
+}
+
+func readNodes(path string, nodes []Node, includeFiles bool) ([]Node, error) {
+	files, err := ioutil.ReadDir(path)
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+	})
+
+	for _, file := range files {
+
+	}
+
+	return nodes, err
+}
+
+func printDir(out io.Writer, nodes []Node, prefixes []string) {
+
+}
+
+func dirsOnly(files []os.FileInfo) []os.FileInfo {
+	b := make([]os.FileInfo, 0)
+	for _, f := range files {
+		if f.IsDir() {
+			b = append(b, f)
+		}
+	}
+	return b
+}
+
+func dirTree(out *os.File, path string, printFiles bool) error {
+	nodes, err := readNodes(path, []Node{}, printFiles)
+	printDir(out, nodes, []string{})
+
+	return err
+}
 
 func main() {
 	out := os.Stdout
@@ -17,46 +81,4 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-}
-
-func dirTree(out *os.File, path string, printFiles bool) error {
-	return printDir(out, path, printFiles, 0)
-}
-
-func printDir(out *os.File, path string, printFiles bool, depth int) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	files, err := f.Readdir(0)
-	if err != nil {
-		return err
-	}
-
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name() < files[j].Name()
-	})
-
-	for i, file := range files {
-
-		prefix := "├───"
-		if i == len(files)-1 {
-			prefix = "└───"
-		}
-
-		for i := 0; i < depth; i++ {
-			prefix = "\t" + prefix
-		}
-
-		if file.IsDir() {
-			io.WriteString(out, prefix+file.Name())
-			io.WriteString(out, "\n")
-
-			printDir(out, path+string(os.PathSeparator)+file.Name(), printFiles, depth+1)
-		}
-	}
-
-	return nil
 }
