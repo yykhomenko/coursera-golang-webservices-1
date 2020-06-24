@@ -154,6 +154,26 @@ func TestSingleHash(t *testing.T) {
 
 	SingleHash(in, out)
 
+	in <- 1
+	fmt.Println(<-out)
+}
+
+func TestMultiHash(t *testing.T) {
+	in := make(chan interface{})
+	out := make(chan interface{})
+
+	MultiHash(in, out)
+
 	in <- "string"
+	fmt.Println(<-out)
+}
+
+func TestCombineResults(t *testing.T) {
+	in := make(chan interface{}, 1)
+	out := make(chan interface{}, 1)
+
+	in <- "string"
+	CombineResults(in, out)
+
 	fmt.Println(<-out)
 }
