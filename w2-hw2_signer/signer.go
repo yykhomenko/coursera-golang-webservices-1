@@ -4,10 +4,11 @@ func ExecutePipeline(jobs ...job) {
 
 }
 
-func SingleHash(data string) string {
-
-	data = "string"
-	r := DataSignerCrc32(data) + "~" + DataSignerCrc32(DataSignerMd5(data))
-
-	return r
+func SingleHash(in chan interface{}, out chan interface{}) {
+	go func() {
+		for raw := range in {
+			data := raw.(string)
+			out <- DataSignerCrc32(data) + "~" + DataSignerCrc32(DataSignerMd5(data))
+		}
+	}()
 }

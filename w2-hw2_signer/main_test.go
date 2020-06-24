@@ -110,8 +110,8 @@ func TestSigner(t *testing.T) {
 			}
 		}),
 		job(SingleHash),
-		job(MultiHash),
-		job(CombineResults),
+		// job(MultiHash),
+		// job(CombineResults),
 		job(func(in, out chan interface{}) {
 			dataRaw := <-in
 			data, ok := dataRaw.(string)
@@ -146,4 +146,14 @@ func TestSigner(t *testing.T) {
 		t.Errorf("not enough hash-func calls")
 	}
 
+}
+
+func TestSingleHash(t *testing.T) {
+	in := make(chan interface{})
+	out := make(chan interface{})
+
+	SingleHash(in, out)
+
+	in <- "string"
+	fmt.Println(<-out)
 }
