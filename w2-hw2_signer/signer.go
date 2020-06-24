@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,9 +42,21 @@ func CombineResults(in, out chan interface{}) {
 	var data []string
 	for raw := range in {
 		data = append(data, raw.(string))
+		runtime.Gosched()
 	}
 
 	sort.Strings(data)
 	// out <- strings.Join(data, "_")
 	out <- "sd"
+}
+
+func main() {
+	in := make(chan interface{}, 1)
+	out := make(chan interface{}, 1)
+
+	in <- "string"
+	close(in)
+	CombineResults(in, out)
+
+	fmt.Println(<-out)
 }
