@@ -59,4 +59,5 @@ func main() {
 	CombineResults(in, out)
 
 	fmt.Println(<-out)
+	close(out)
 }
