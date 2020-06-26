@@ -10,26 +10,39 @@ import (
 const TH = 6
 
 func ExecutePipeline(jobs ...job) {
+	var wg sync.WaitGroup
 	in := make(chan interface{})
+	out := make(chan interface{})
 
+	wg.Add(len(jobs))
 	for _, job := range jobs {
-		out := make(chan interface{})
-		job(in, out)
+		go execJob(&wg, job, in, out)
 		in = out
+		out = make(chan interface{})
 	}
+
+	wg.Wait()
+	close(out)
+}
+
+func execJob(wg *sync.WaitGroup, job job, in, out chan interface{}) {
+	job(in, out)
+	wg.Done()
+	close(out)
 }
 
 func SingleHash(in, out chan interface{}) {
 	m := &sync.Mutex{}
-	go func() {
-		for raw := range in {
-			data := strconv.Itoa(raw.(int))
-			go calcSingleHash(m, out, data)
-		}
-	}()
+	wg := &sync.WaitGroup{}
+	for raw := range in {
+		wg.Add(1)
+		go calcSingleHash(m, wg, out, strconv.Itoa(raw.(int)))
+	}
+	wg.Wait()
 }
 
-func calcSingleHash(m *sync.Mutex, out chan interface{}, data string) {
+func calcSingleHash(m *sync.Mutex, wg *sync.WaitGroup, out chan interface{}, data string) {
+	defer wg.Done()
 	md5ch := make(chan string)
 	crc32ch := make(chan string)
 	crc32md5ch := make(chan string)
@@ -55,16 +68,18 @@ func calcSingleHash(m *sync.Mutex, out chan interface{}, data string) {
 }
 
 func MultiHash(in, out chan interface{}) {
-	go func() {
-		for raw := range in {
-			go calcMultiHash(out, raw.(string))
-		}
-	}()
+	wg := &sync.WaitGroup{}
+	for raw := range in {
+		wg.Add(1)
+		go calcMultiHash(wg, out, raw.(string))
+	}
+	wg.Wait()
 }
 
-func calcMultiHash(out chan interface{}, data string) {
+func calcMultiHash(wg *sync.WaitGroup, out chan interface{}, data string) {
+	defer wg.Done()
 
-	hashes := make(map[int]chan string, TH)
+	hashes := make([]chan string, TH)
 
 	for i := 0; i < TH; i++ {
 		hash := make(chan string)
@@ -75,12 +90,12 @@ func calcMultiHash(out chan interface{}, data string) {
 		}(hash, i)
 	}
 
-	var result []string
+	var buff []string
 	for i := 0; i < TH; i++ {
-		result = append(result, <-hashes[i])
+		buff = append(buff, <-hashes[i])
 	}
 
-	out <- strings.Join(result, "")
+	out <- strings.Join(buff, "")
 }
 
 func CombineResults(in, out chan interface{}) {
