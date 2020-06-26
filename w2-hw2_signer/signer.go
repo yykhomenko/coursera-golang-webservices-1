@@ -33,22 +33,22 @@ func calcSingleHash(m *sync.Mutex, out chan interface{}, data string) {
 	md5ch := make(chan string)
 	crc32ch := make(chan string)
 	crc32md5ch := make(chan string)
-	defer close(md5ch)
-	defer close(crc32ch)
-	defer close(crc32md5ch)
 
 	go func(out chan<- string, data string) {
 		m.Lock()
 		out <- DataSignerMd5(data)
 		m.Unlock()
+		close(out)
 	}(md5ch, data)
 
 	go func(out chan<- string, data string) {
 		out <- DataSignerCrc32(data)
+		close(out)
 	}(crc32ch, data)
 
 	go func(out chan<- string, data string) {
 		out <- DataSignerCrc32(data)
+		close(out)
 	}(crc32md5ch, <-md5ch)
 
 	out <- (<-crc32ch) + "~" + (<-crc32md5ch)
