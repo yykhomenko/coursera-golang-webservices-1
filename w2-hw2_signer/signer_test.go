@@ -28,18 +28,22 @@ func TestSingleHash(t *testing.T) {
 }
 
 func TestMultiHash(t *testing.T) {
-	in := make(chan interface{}, 4)
-	out := make(chan interface{}, 1)
-
-	in <- "1"
-	in <- "2"
-	close(in)
+	in := make(chan interface{})
+	out := make(chan interface{})
+	defer close(in)
 	defer close(out)
 
 	MultiHash(in, out)
 
-	assert.Equal(t, "35962279594252452532383231384528719107062989936755", <-out)
-	assert.Equal(t, "133085716516859850382103780943841265288725582281", <-out)
+	start := time.Now()
+
+	in <- "1"
+	in <- "2"
+
+	assert.Equal(t, "1447589260133085716516859850382103780943841265288725582281", <-out)
+	assert.Equal(t, "347715282235962279594252452532383231384528719107062989936755", <-out)
+
+	log.Println("time:", time.Now().Sub(start))
 }
 
 func TestCombineResults(t *testing.T) {

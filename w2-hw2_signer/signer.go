@@ -57,17 +57,20 @@ func calcSingleHash(m *sync.Mutex, out chan interface{}, data string) {
 func MultiHash(in, out chan interface{}) {
 	go func() {
 		for raw := range in {
-
-			data := make([]string, TH)
-
-			for i := 1; i < TH; i++ {
-				crc32 := DataSignerCrc32(strconv.Itoa(i) + raw.(string))
-				data = append(data, crc32)
-			}
-
-			out <- strings.Join(data, "")
+			go calcMultiHash(out, raw.(string))
 		}
 	}()
+}
+
+func calcMultiHash(out chan interface{}, data string) {
+	hashes := make([]string, TH)
+
+	for i := 0; i < TH; i++ {
+		hash := DataSignerCrc32(strconv.Itoa(i) + data)
+		hashes = append(hashes, hash)
+	}
+
+	out <- strings.Join(hashes, "")
 }
 
 func CombineResults(in, out chan interface{}) {
