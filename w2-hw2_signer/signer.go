@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,14 +24,15 @@ func SingleHash(in, out chan interface{}) {
 func MultiHash(in, out chan interface{}) {
 	go func() {
 		for raw := range in {
-			data := raw.(string)
-			b := strings.Builder{}
+
+			data := make([]string, TH)
 
 			for i := 1; i < TH; i++ {
-				b.WriteString(DataSignerCrc32(strconv.Itoa(i) + data))
+				crc32 := DataSignerCrc32(strconv.Itoa(i) + raw.(string))
+				data = append(data, crc32)
 			}
 
-			out <- b.String()
+			out <- strings.Join(data, "")
 		}
 	}()
 }
@@ -43,7 +43,5 @@ func CombineResults(in, out chan interface{}) {
 		data = append(data, raw.(string))
 	}
 	sort.Strings(data)
-	result := strings.Join(data, "_")
-	log.Println("combine results:", result)
-	out <- result
+	out <- strings.Join(data, "_")
 }
