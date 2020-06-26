@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -47,19 +46,4 @@ func CombineResults(in, out chan interface{}) {
 	result := strings.Join(data, "_")
 	log.Println("combine results:", result)
 	out <- result
-}
-
-func main() {
-	in := make(chan interface{}, 10)
-	out := make(chan interface{}, 1)
-
-	in <- "string1"
-	in <- "string2"
-	in <- "string3"
-	in <- "string4"
-	close(in)
-	CombineResults(in, out)
-
-	fmt.Println(<-out)
-	close(out)
 }
