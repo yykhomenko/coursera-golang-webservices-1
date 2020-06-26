@@ -9,7 +9,13 @@ import (
 const TH = 6
 
 func ExecutePipeline(jobs ...job) {
+	in := make(chan interface{})
 
+	for _, job := range jobs {
+		out := make(chan interface{})
+		job(in, out)
+		in = out
+	}
 }
 
 func SingleHash(in, out chan interface{}) {
