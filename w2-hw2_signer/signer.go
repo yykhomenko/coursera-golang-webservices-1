@@ -63,14 +63,24 @@ func MultiHash(in, out chan interface{}) {
 }
 
 func calcMultiHash(out chan interface{}, data string) {
-	hashes := make([]string, TH)
+
+	hashes := make(map[int]chan string, TH)
 
 	for i := 0; i < TH; i++ {
-		hash := DataSignerCrc32(strconv.Itoa(i) + data)
-		hashes = append(hashes, hash)
+		hash := make(chan string)
+		hashes[i] = hash
+		go func(out chan string, idx int) {
+			out <- DataSignerCrc32(strconv.Itoa(idx) + data)
+			close(out)
+		}(hash, i)
 	}
 
-	out <- strings.Join(hashes, "")
+	var result []string
+	for i := 0; i < TH; i++ {
+		result = append(result, <-hashes[i])
+	}
+
+	out <- strings.Join(result, "")
 }
 
 func CombineResults(in, out chan interface{}) {
