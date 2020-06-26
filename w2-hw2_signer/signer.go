@@ -53,10 +53,10 @@ func main() {
 	in := make(chan interface{}, 10)
 	out := make(chan interface{}, 1)
 
-	in <- "string"
-	in <- "string"
-	in <- "string"
-	in <- "string"
+	in <- "string1"
+	in <- "string2"
+	in <- "string3"
+	in <- "string4"
 	close(in)
 	CombineResults(in, out)
 

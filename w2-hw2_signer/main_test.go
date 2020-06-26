@@ -167,13 +167,3 @@ func TestMultiHash(t *testing.T) {
 	in <- "string"
 	fmt.Println(<-out)
 }
-
-func TestCombineResults(t *testing.T) {
-	in := make(chan interface{}, 1)
-	out := make(chan interface{}, 1)
-
-	in <- "string"
-	CombineResults(in, out)
-
-	fmt.Println(<-out)
-}
