@@ -7,7 +7,7 @@ import (
 )
 
 func TestCombineResults(t *testing.T) {
-	in := make(chan interface{}, 10)
+	in := make(chan interface{}, 4)
 	out := make(chan interface{}, 1)
 
 	in <- "1"

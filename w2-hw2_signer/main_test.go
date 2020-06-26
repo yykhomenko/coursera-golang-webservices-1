@@ -148,16 +148,6 @@ func TestSigner(t *testing.T) {
 
 }
 
-func TestSingleHash(t *testing.T) {
-	in := make(chan interface{})
-	out := make(chan interface{})
-
-	SingleHash(in, out)
-
-	in <- 1
-	fmt.Println(<-out)
-}
-
 func TestMultiHash(t *testing.T) {
 	in := make(chan interface{})
 	out := make(chan interface{})
