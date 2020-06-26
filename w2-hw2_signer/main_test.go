@@ -147,13 +147,3 @@ func TestSigner(t *testing.T) {
 	}
 
 }
-
-func TestMultiHash(t *testing.T) {
-	in := make(chan interface{})
-	out := make(chan interface{})
-
-	MultiHash(in, out)
-
-	in <- "string"
-	fmt.Println(<-out)
-}
