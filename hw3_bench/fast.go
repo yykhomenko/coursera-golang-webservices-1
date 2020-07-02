@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,13 @@ import (
 	"github.com/mailru/easyjson/jlexer"
 )
 
-var replacer = strings.NewReplacer("@", " [at] ")
+var (
+	replacer  = strings.NewReplacer("@", " [at] ")
+	cAndroid  = "Android"
+	cbAndroid = []byte(cAndroid)
+	cMSIE     = "MSIE"
+	cbMSIE    = []byte(cMSIE)
+)
 
 type User struct {
 	Name     string   `json:"name"`
@@ -87,14 +94,22 @@ func FastSearch(out io.Writer) {
 	if err != nil {
 		panic(err)
 	}
+	defer file.Close()
 
 	fmt.Fprintln(out, "found users:")
 
-	seenBrowsers := make(map[string]struct{})
+	seenBrowsers := make(map[string]struct{}, 200)
 	sc := bufio.NewScanner(file)
 	for i := 0; sc.Scan(); i++ {
+
+		line := sc.Bytes()
+
+		if !(bytes.Contains(line, cbAndroid) || bytes.Contains(line, cbMSIE)) {
+			continue
+		}
+
 		user := &User{}
-		if err := user.UnmarshalJSON(sc.Bytes()); err != nil {
+		if err := user.UnmarshalJSON(line); err != nil {
 			panic(err)
 		}
 
@@ -102,12 +117,12 @@ func FastSearch(out io.Writer) {
 		isAndroid := false
 		for _, browser := range user.Browsers {
 
-			if strings.Contains(browser, "Android") {
+			if strings.Contains(browser, cAndroid) {
 				isAndroid = true
 				seenBrowsers[browser] = struct{}{}
 			}
 
-			if strings.Contains(browser, "MSIE") {
+			if strings.Contains(browser, cMSIE) {
 				isMSIE = true
 				seenBrowsers[browser] = struct{}{}
 			}
