@@ -88,13 +88,11 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	seenBrowsers := make(map[string]struct{})
-	var userCounter int
-
 	fmt.Fprintln(out, "found users:")
 
+	seenBrowsers := make(map[string]struct{})
 	sc := bufio.NewScanner(file)
-	for sc.Scan() {
+	for i := 0; sc.Scan(); i++ {
 		user := &User{}
 		if err := user.UnmarshalJSON(sc.Bytes()); err != nil {
 			panic(err)
@@ -117,10 +115,8 @@ func FastSearch(out io.Writer) {
 
 		if isAndroid && isMSIE {
 			email := replacer.Replace(user.Email)
-			io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", userCounter, user.Name, email))
+			io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email))
 		}
-
-		userCounter++
 	}
 
 	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))
