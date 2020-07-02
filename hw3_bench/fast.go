@@ -97,6 +97,8 @@ func FastSearch(out io.Writer) {
 		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email)
 	}
 
-	fmt.Fprintln(out, "found users:\n"+foundUsers)
+	fmt.Fprintln(out, "found users:")
+	io.WriteString(out, foundUsers)
+	io.WriteString(out, "\n")
 	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
 }
