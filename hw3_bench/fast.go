@@ -96,7 +96,9 @@ func FastSearch(out io.Writer) {
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		user := &User{}
-		user.UnmarshalJSON(sc.Bytes())
+		if err := user.UnmarshalJSON(sc.Bytes()); err != nil {
+			panic(err)
+		}
 
 		isMSIE := false
 		isAndroid := false
