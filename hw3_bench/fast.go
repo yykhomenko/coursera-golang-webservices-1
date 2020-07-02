@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+type User map[string]interface{}
+
 // вам надо написать более быструю оптимальную этой функции
 func FastSearch(out io.Writer) {
 	file, err := os.Open(filePath)
@@ -17,43 +19,29 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	rxp := regexp.MustCompile("@")
-	seenBrowsers := []string{}
-	uniqueBrowsers := 0
-	foundUsers := ""
-
-	users := make([]map[string]interface{}, 0)
+	users := make([]User, 0)
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
-		line := sc.Text()
-		user := make(map[string]interface{})
-		// fmt.Printf("%v %v\n", err, line)
-		err := json.Unmarshal([]byte(line), &user)
-		if err != nil {
-			panic(err)
-		}
+		user := parseUser(sc.Text())
 		users = append(users, user)
 	}
 
-	if sc.Err() != nil {
-		panic(err)
-	}
+	foundUsers := ""
+	var seenBrowsers []string
+	rxp := regexp.MustCompile("@")
 
 	for i, user := range users {
 
-		isAndroid := false
-		isMSIE := false
-
 		browsers, ok := user["browsers"].([]interface{})
 		if !ok {
-			// log.Println("cant cast browsers")
 			continue
 		}
 
+		isAndroid := false
+		isMSIE := false
 		for _, browserRaw := range browsers {
 			browser, ok := browserRaw.(string)
 			if !ok {
-				// log.Println("cant cast browser to string")
 				continue
 			}
 
@@ -66,9 +54,7 @@ func FastSearch(out io.Writer) {
 					}
 				}
 				if notSeenBefore {
-					// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
 					seenBrowsers = append(seenBrowsers, browser)
-					uniqueBrowsers++
 				}
 			}
 
@@ -81,9 +67,7 @@ func FastSearch(out io.Writer) {
 					}
 				}
 				if notSeenBefore {
-					// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
 					seenBrowsers = append(seenBrowsers, browser)
-					uniqueBrowsers++
 				}
 			}
 		}
@@ -92,7 +76,6 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		// log.Println("Android and MSIE user:", user["name"], user["email"])
 		email := rxp.ReplaceAllString(user["email"].(string), " [at] ")
 		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email)
 	}
@@ -101,4 +84,12 @@ func FastSearch(out io.Writer) {
 	io.WriteString(out, foundUsers)
 	io.WriteString(out, "\n")
 	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
+}
+
+func parseUser(line string) User {
+	user := make(User)
+	if err := json.Unmarshal([]byte(line), &user); err != nil {
+		panic(err)
+	}
+	return user
 }
