@@ -25,7 +25,7 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	users := []User{}
+	var users []User
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		user := parseUser(sc.Bytes())
