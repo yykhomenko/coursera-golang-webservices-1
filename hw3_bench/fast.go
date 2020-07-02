@@ -24,7 +24,6 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	// var seenBrowsers []string
 	seenBrowsers := make(map[string]struct{})
 	var userCounter int
 
