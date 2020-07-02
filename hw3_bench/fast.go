@@ -80,7 +80,8 @@ func FastSearch(out io.Writer) {
 				// log.Println("cant cast browser to string")
 				continue
 			}
-			if ok, err := regexp.MatchString("MSIE", browser); ok && err == nil {
+
+			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
 				notSeenBefore := true
 				for _, item := range seenBrowsers {
