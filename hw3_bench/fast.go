@@ -1,21 +1,85 @@
-package main
+package my
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/mailru/easyjson/jlexer"
 )
 
+var replacer = strings.NewReplacer("@", " [at] ")
+
 type User struct {
-	Name     string
-	Email    string
-	Browsers []string
+	Name     string   `json:"name"`
+	Email    string   `json:"email"`
+	Browsers []string `json:"browsers"`
 }
 
-var replacer = strings.NewReplacer("@", " [at] ")
+func (out *User) UnmarshalJSON(data []byte) error {
+	in := jlexer.Lexer{Data: data}
+	unmarshal(&in, out)
+	return in.Error()
+}
+
+func unmarshal(in *jlexer.Lexer, out *User) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "name":
+			out.Name = string(in.String())
+		case "email":
+			out.Email = string(in.String())
+		case "browsers":
+			if in.IsNull() {
+				in.Skip()
+				out.Browsers = nil
+			} else {
+				in.Delim('[')
+				if out.Browsers == nil {
+					if !in.IsDelim(']') {
+						out.Browsers = make([]string, 0, 4)
+					} else {
+						out.Browsers = []string{}
+					}
+				} else {
+					out.Browsers = (out.Browsers)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v1 string
+					v1 = string(in.String())
+					out.Browsers = append(out.Browsers, v1)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
 
 // вам надо написать более быструю оптимальную этой функции
 func FastSearch(out io.Writer) {
@@ -32,9 +96,7 @@ func FastSearch(out io.Writer) {
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		user := &User{}
-		if err := json.Unmarshal(sc.Bytes(), user); err != nil {
-			panic(err)
-		}
+		user.UnmarshalJSON(sc.Bytes())
 
 		isMSIE := false
 		isAndroid := false
@@ -42,16 +104,12 @@ func FastSearch(out io.Writer) {
 
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
-				if _, ok := seenBrowsers[browser]; !ok {
-					seenBrowsers[browser] = struct{}{}
-				}
+				seenBrowsers[browser] = struct{}{}
 			}
 
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
-				if _, ok := seenBrowsers[browser]; !ok {
-					seenBrowsers[browser] = struct{}{}
-				}
+				seenBrowsers[browser] = struct{}{}
 			}
 		}
 
