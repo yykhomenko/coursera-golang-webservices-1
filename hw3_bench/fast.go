@@ -25,11 +25,11 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	users := make([]User, 0)
+	users := []User{}
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		user := parseUser(sc.Bytes())
-		users = append(users, *user)
+		users = append(users, user)
 	}
 
 	process(out, users)
@@ -71,7 +71,6 @@ func process(out io.Writer, users []User) {
 					seenBrowsers = append(seenBrowsers, browser)
 				}
 			}
-
 		}
 
 		if !(isAndroid && isMSIE) {
@@ -88,9 +87,9 @@ func process(out io.Writer, users []User) {
 	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
 }
 
-func parseUser(line []byte) *User {
-	user := &User{}
-	if err := json.Unmarshal(line, user); err != nil {
+func parseUser(line []byte) User {
+	user := User{}
+	if err := json.Unmarshal(line, &user); err != nil {
 		panic(err)
 	}
 	return user
