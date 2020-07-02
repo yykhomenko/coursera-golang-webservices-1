@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -16,7 +15,7 @@ type User struct {
 	Browsers []string
 }
 
-var atRegex = regexp.MustCompile("@")
+var replacer = strings.NewReplacer("@", " [at] ")
 
 // вам надо написать более быструю оптимальную этой функции
 func FastSearch(out io.Writer) {
@@ -25,61 +24,45 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	var seenBrowsers []string
-	var userCount int
+	// var seenBrowsers []string
+	seenBrowsers := make(map[string]struct{})
+	var userCounter int
 
 	fmt.Fprintln(out, "found users:")
 
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
-		user := parseUser(sc.Bytes())
+		user := &User{}
+		if err := json.Unmarshal(sc.Bytes(), user); err != nil {
+			panic(err)
+		}
 
-		isAndroid := false
 		isMSIE := false
+		isAndroid := false
 		for _, browser := range user.Browsers {
 
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
-				notSeenBefore := true
-				for _, item := range seenBrowsers {
-					if item == browser {
-						notSeenBefore = false
-					}
-				}
-				if notSeenBefore {
-					seenBrowsers = append(seenBrowsers, browser)
+				if _, ok := seenBrowsers[browser]; !ok {
+					seenBrowsers[browser] = struct{}{}
 				}
 			}
 
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
-				notSeenBefore := true
-				for _, item := range seenBrowsers {
-					if item == browser {
-						notSeenBefore = false
-					}
-				}
-				if notSeenBefore {
-					seenBrowsers = append(seenBrowsers, browser)
+				if _, ok := seenBrowsers[browser]; !ok {
+					seenBrowsers[browser] = struct{}{}
 				}
 			}
 		}
 
 		if isAndroid && isMSIE {
-			email := atRegex.ReplaceAllString(user.Email, " [at] ")
-			io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", userCount, user.Name, email))
+			email := replacer.Replace(user.Email)
+			io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", userCounter, user.Name, email))
 		}
 
-		userCount += 1
+		userCounter++
 	}
 
 	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))
-}
-
-func parseUser(line []byte) User {
-	user := User{}
-	if err := json.Unmarshal(line, &user); err != nil {
-		panic(err)
-	}
-	return user
 }
