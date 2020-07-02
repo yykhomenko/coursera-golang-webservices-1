@@ -2,13 +2,11 @@ Setup:
 ```bash
 go get -u github.com/mailru/easyjson/...
 go install github.com/mailru/easyjson
-```
-
-```bash
 easyjson -all fast.go
 ```
 error if package named "main" - rename and generate
 
+Commands:
 ```bash
 go test -v
 go test -bench=Fast -benchmem -cpuprofile=cpu.out -memprofile=mem.out
