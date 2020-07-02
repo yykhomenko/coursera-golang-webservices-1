@@ -26,20 +26,17 @@ func FastSearch(out io.Writer) {
 	}
 
 	var users []User
+	var seenBrowsers []string
+
 	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		user := parseUser(sc.Bytes())
 		users = append(users, user)
 	}
 
-	process(out, users)
-}
+	fmt.Fprintln(out, "found users:")
 
-func process(out io.Writer, users []User) {
-
-	foundUsers := ""
-	var seenBrowsers []string
-
+	var idx int
 	for i, user := range users {
 
 		isAndroid := false
@@ -78,13 +75,10 @@ func process(out io.Writer, users []User) {
 		}
 
 		email := atRegex.ReplaceAllString(user.Email, " [at] ")
-		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
+		io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email))
 	}
 
-	fmt.Fprintln(out, "found users:")
-	io.WriteString(out, foundUsers)
-	io.WriteString(out, "\n")
-	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
+	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))
 }
 
 func parseUser(line []byte) User {
