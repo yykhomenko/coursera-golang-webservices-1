@@ -71,14 +71,6 @@ func FastSearch(out io.Writer) {
 					uniqueBrowsers++
 				}
 			}
-		}
-
-		for _, browserRaw := range browsers {
-			browser, ok := browserRaw.(string)
-			if !ok {
-				// log.Println("cant cast browser to string")
-				continue
-			}
 
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
