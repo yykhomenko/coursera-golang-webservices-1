@@ -7,16 +7,23 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/mailru/easyjson/jlexer"
 )
 
 var (
-	replacer  = strings.NewReplacer("@", " [at] ")
 	cAndroid  = "Android"
-	cbAndroid = []byte(cAndroid)
 	cMSIE     = "MSIE"
+	cbAndroid = []byte(cAndroid)
 	cbMSIE    = []byte(cMSIE)
+
+	replacer = strings.NewReplacer("@", " [at] ")
+	userPool = sync.Pool{
+		New: func() interface{} {
+			return &User{}
+		},
+	}
 )
 
 type User struct {
@@ -108,7 +115,10 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		user := &User{}
+		// user := &User{}
+
+		user := userPool.Get().(*User)
+
 		if err := user.UnmarshalJSON(line); err != nil {
 			panic(err)
 		}
@@ -132,6 +142,8 @@ func FastSearch(out io.Writer) {
 			email := replacer.Replace(user.Email)
 			io.WriteString(out, fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email))
 		}
+
+		userPool.Put(user)
 	}
 
 	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))

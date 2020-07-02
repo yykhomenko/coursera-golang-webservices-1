@@ -28,8 +28,8 @@ mac:hw3_bench yykhomenko$ go test -bench . -benchmem
 goos: darwin
 goarch: amd64
 pkg: github.com/yykhomenko/coursera-golang-webservices-1/hw3_bench
-BenchmarkSlow-8               48          25159277 ns/op        18975903 B/op     195841 allocs/op
-BenchmarkFast-8              900           1337703 ns/op          338149 B/op       4565 allocs/op
+BenchmarkSlow-8               48          24930166 ns/op        18978971 B/op     195840 allocs/op
+BenchmarkFast-8              934           1296906 ns/op          301110 B/op       3985 allocs/op
 PASS
 ok      github.com/yykhomenko/coursera-golang-webservices-1/hw3_bench   2.620s
 ```
