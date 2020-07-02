@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -17,20 +17,15 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	fileContents, err := ioutil.ReadAll(file)
-	if err != nil {
-		panic(err)
-	}
-
-	r := regexp.MustCompile("@")
+	rxp := regexp.MustCompile("@")
 	seenBrowsers := []string{}
 	uniqueBrowsers := 0
 	foundUsers := ""
 
-	lines := strings.Split(string(fileContents), "\n")
-
 	users := make([]map[string]interface{}, 0)
-	for _, line := range lines {
+	sc := bufio.NewScanner(file)
+	for sc.Scan() {
+		line := sc.Text()
 		user := make(map[string]interface{})
 		// fmt.Printf("%v %v\n", err, line)
 		err := json.Unmarshal([]byte(line), &user)
@@ -38,6 +33,10 @@ func FastSearch(out io.Writer) {
 			panic(err)
 		}
 		users = append(users, user)
+	}
+
+	if sc.Err() != nil {
+		panic(err)
 	}
 
 	for i, user := range users {
@@ -102,7 +101,7 @@ func FastSearch(out io.Writer) {
 		}
 
 		// log.Println("Android and MSIE user:", user["name"], user["email"])
-		email := r.ReplaceAllString(user["email"].(string), " [at] ")
+		email := rxp.ReplaceAllString(user["email"].(string), " [at] ")
 		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email)
 	}
 
