@@ -115,10 +115,7 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		// user := &User{}
-
 		user := userPool.Get().(*User)
-
 		if err := user.UnmarshalJSON(line); err != nil {
 			panic(err)
 		}

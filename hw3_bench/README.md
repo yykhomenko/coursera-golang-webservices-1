@@ -1,5 +1,5 @@
 #hw3_bench
-Solution of the problem. Program optimization. 
+Program optimization.
 
 https://www.coursera.org/learn/golang-webservices-1/home/welcome
 
