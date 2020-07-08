@@ -52,10 +52,9 @@ func SearchServer() http.HandlerFunc {
 		fmt.Println(dataset.Entries)
 		fmt.Println(sreq)
 
-		users := SearchUsers(dataset, sreq)
-
-		fmt.Println(users)
-		json.NewEncoder(w).Encode(users.Users)
+		resp := SearchUsers(dataset, sreq)
+		fmt.Println(resp)
+		json.NewEncoder(w).Encode(resp.Users)
 	}
 }
 
