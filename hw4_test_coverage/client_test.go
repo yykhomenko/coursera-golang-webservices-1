@@ -3,181 +3,253 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
-	"errors"
-	"fmt"
+	_ "fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"sort"
 	"strconv"
-	"strings"
 	"testing"
+	"time"
 )
 
-const DatasetFilename = "dataset.xml"
-
-type Dataset struct {
-	Version string  `xml:"version,attr"`
-	Entries []Entry `xml:"row"`
-}
-
-type Entry struct {
-	ID        int    `xml:"id"`
+type row struct {
+	Id        int    `xml:"id"`
+	Age       int    `xml:"age"`
 	FirstName string `xml:"first_name"`
 	LastName  string `xml:"last_name"`
-	Age       int    `xml:"age"`
-	About     string `xml:"about"`
 	Gender    string `xml:"gender"`
+	About     string `xml:"about"`
 }
 
-func SearchServer() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		req, err := parseRequest(r)
-		if err != nil {
-			fmt.Printf("read url params error: %v\n", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		dataset, err := dataset(DatasetFilename)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		resp := SearchUsers(dataset, req)
-		if err := sortUsers(resp.Users, req.OrderBy); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchErrorResponse{Error: err.Error()})
-		}
-
-		json.NewEncoder(w).Encode(resp.Users)
-	}
+type dataset struct {
+	Version string `xml:"version"`
+	Row     []row  `xml:"row"`
 }
 
-func parseRequest(r *http.Request) (*SearchRequest, error) {
-	q := r.URL.Query()
+const pageSize = 25
 
-	limit, err := strconv.Atoi(q.Get("limit"))
-	if err != nil {
-		return nil, err
-	}
+func SearchServerSuccess(w http.ResponseWriter, r *http.Request) {
+	f, err := ioutil.ReadFile("dataset.xml")
+	checkError(err)
 
-	offset, err := strconv.Atoi(q.Get("offset"))
-	if err != nil {
-		return nil, err
-	}
-
-	query := q.Get("query")
-	orderField := q.Get("order_field")
-
-	orderBy, err := strconv.Atoi(q.Get("order_by"))
-	if err != nil {
-		return nil, err
-	}
-
-	return &SearchRequest{
-		Limit:      limit,
-		Offset:     offset,
-		Query:      query,
-		OrderField: orderField,
-		OrderBy:    orderBy,
-	}, nil
-}
-
-func dataset(filename string) (*Dataset, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		fmt.Printf("read dataset error: %v\n", err)
-		return nil, err
-	}
-
-	dataset := new(Dataset)
-	if err := xml.Unmarshal(content, &dataset); err != nil {
-		fmt.Printf("dataset parse error %v\n", err)
-		return nil, err
-	}
-
-	return dataset, nil
-}
-
-func SearchUsers(d *Dataset, r *SearchRequest) *SearchResponse {
+	dataset := &dataset{}
+	xml.Unmarshal(f, &dataset)
 
 	var users []User
-
-	for _, e := range d.Entries {
-
-		if r.Query == "" ||
-			strings.Contains(e.FirstName, r.Query) ||
-			strings.Contains(e.LastName, r.Query) ||
-			strings.Contains(e.About, r.Query) {
-
-			users = append(users, User{
-				Id:     e.ID,
-				Name:   fmt.Sprintf("%s %s", e.FirstName, e.LastName),
-				Age:    e.Age,
-				About:  e.About,
-				Gender: e.Gender,
-			})
-		}
+	for _, user := range dataset.Row {
+		users = append(users, User{
+			Id:     user.Id,
+			Name:   user.FirstName,
+			Age:    user.Age,
+			About:  user.About,
+			Gender: user.Gender,
+		})
 	}
 
-	return &SearchResponse{
-		Users:    users,
-		NextPage: false,
+	offset, _ := strconv.Atoi(r.FormValue("offset"))
+	limit, _ := strconv.Atoi(r.FormValue("limit"))
+
+	var startRow int
+	if offset > 0 {
+		startRow = offset * pageSize
 	}
+
+	endRow := startRow + limit
+	users = users[startRow:endRow]
+
+	response, err := json.Marshal(users)
+	checkError(err)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }
 
-func sortUsers(users []User, order int) error {
-	switch order {
-	case OrderByAsc:
-		sort.Slice(users, func(i, j int) bool {
-			return users[i].Id > users[i].Id ||
-				users[i].Age > users[i].Age ||
-				users[i].Name > users[i].Name
+func SearchServerLimitFail(w http.ResponseWriter, r *http.Request) {
+	f, err := ioutil.ReadFile("dataset.xml")
+	checkError(err)
+
+	dataset := &dataset{}
+	xml.Unmarshal(f, &dataset)
+
+	var users []User
+	for _, user := range dataset.Row {
+		users = append(users, User{
+			Id:     user.Id,
+			Name:   user.FirstName,
+			Age:    user.Age,
+			About:  user.About,
+			Gender: user.Gender,
 		})
-	case OrderByAsIs:
-		sort.Slice(users, func(i, j int) bool {
-			return users[i].Name > users[i].Name
-		})
-	case OrderByDesc:
-		sort.Slice(users, func(i, j int) bool {
-			return users[i].Id < users[i].Id ||
-				users[i].Age < users[i].Age ||
-				users[i].Name < users[i].Name
-		})
-	default:
-		return errors.New(ErrorBadOrderField)
 	}
 
-	return nil
+	response, err := json.Marshal(users)
+	checkError(err)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }
 
-func TestFindUsers(t *testing.T) {
-	s := httptest.NewServer(SearchServer())
-	c := &SearchClient{
-		AccessToken: "token",
-		URL:         s.URL,
-	}
+func TestErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(SearchServerSuccess))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+	request := SearchRequest{Limit: 5, Offset: 0}
 
-	req := SearchRequest{
-		Limit:      1,
-		Offset:     0,
-		Query:      "O",
-		OrderField: "",
-		OrderBy:    0,
-	}
-
-	resp, err := c.FindUsers(req)
+	_, err := client.FindUsers(request)
 	if err != nil {
-		t.Error(err)
+		t.Error("Doesn't work success request")
 	}
 
-	respUser := resp.Users[0]
+	request.Limit = -1
 
-	if !strings.Contains(respUser.Name, req.Query) &&
-		!strings.Contains(respUser.About, req.Query) {
-		t.Error("wrong user")
+	_, err = client.FindUsers(request)
+	if err.Error() != "limit must be > 0" {
+		t.Error("limit must be > 0")
+	}
+
+	request.Limit = 1
+	request.Offset = -1
+	_, err = client.FindUsers(request)
+	if err.Error() != "offset must be > 0" {
+		t.Error("offset must be > 0")
+	}
+}
+
+func TestOverLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(SearchServerSuccess))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	response, _ := client.FindUsers(SearchRequest{Limit: 26})
+
+	if pageSize != len(response.Users) {
+		t.Error("Over limit")
+	}
+}
+
+func TestLimitFailed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(SearchServerLimitFail))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	limit := 7
+	response, _ := client.FindUsers(SearchRequest{Limit: limit})
+	if limit == len(response.Users) {
+		t.Error("Limit not true")
+	}
+}
+
+func TestBadJson(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, `"err": "bad json"}`)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err.Error() != `cant unpack result json: invalid character ':' after top-level value` {
+		t.Error("Bad json test")
+	}
+}
+
+func TestTimeoutError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Second * 2)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Timeout check error")
+	}
+}
+
+func TestStatusUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err.Error() != "Bad AccessToken" {
+		t.Error("Bad AccessToken")
+	}
+}
+
+func TestBadRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+	searchClient := &SearchClient{URL: server.URL}
+
+	_, err := searchClient.FindUsers(SearchRequest{})
+	if err.Error() != "cant unpack error json: unexpected end of JSON input" {
+		t.Error("TestBadRequest is not done")
+	}
+}
+
+func TestBadField(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		jsonResponse, _ := json.Marshal(SearchErrorResponse{Error: "ErrorBadOrderField"})
+		w.Write(jsonResponse)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err.Error() != "OrderFeld  invalid" {
+		t.Error("ErrorBadOrderField is not done")
+	}
+}
+
+func TestBadRequestError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		jsonResponse, _ := json.Marshal(SearchErrorResponse{Error: "Unknown error"})
+		w.Write(jsonResponse)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("TestBadRequestError is not done")
+	}
+}
+
+func TestStatusInternalServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	client := &SearchClient{URL: server.URL}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err.Error() != "SearchServer fatal error" {
+		t.Error("SearchServer error")
+	}
+}
+
+func TestUnknownError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { /* NOP */ }))
+	defer server.Close()
+	client := &SearchClient{URL: "bad_link"}
+
+	_, err := client.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Test unknown error")
+	}
+}
+
+func checkError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
