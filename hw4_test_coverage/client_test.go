@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -45,6 +47,11 @@ func SearchServer() http.HandlerFunc {
 		}
 
 		resp := SearchUsers(dataset, req)
+		if err := sortUsers(resp.Users, req.OrderBy); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(SearchErrorResponse{Error: err.Error()})
+		}
+
 		json.NewEncoder(w).Encode(resp.Users)
 	}
 }
@@ -100,7 +107,9 @@ func SearchUsers(d *Dataset, r *SearchRequest) *SearchResponse {
 	var users []User
 
 	for _, e := range d.Entries {
-		if strings.Contains(e.FirstName, r.Query) ||
+
+		if r.Query == "" ||
+			strings.Contains(e.FirstName, r.Query) ||
 			strings.Contains(e.LastName, r.Query) ||
 			strings.Contains(e.About, r.Query) {
 
@@ -120,6 +129,31 @@ func SearchUsers(d *Dataset, r *SearchRequest) *SearchResponse {
 	}
 }
 
+func sortUsers(users []User, order int) error {
+	switch order {
+	case OrderByAsc:
+		sort.Slice(users, func(i, j int) bool {
+			return users[i].Id > users[i].Id ||
+				users[i].Age > users[i].Age ||
+				users[i].Name > users[i].Name
+		})
+	case OrderByAsIs:
+		sort.Slice(users, func(i, j int) bool {
+			return users[i].Name > users[i].Name
+		})
+	case OrderByDesc:
+		sort.Slice(users, func(i, j int) bool {
+			return users[i].Id < users[i].Id ||
+				users[i].Age < users[i].Age ||
+				users[i].Name < users[i].Name
+		})
+	default:
+		return errors.New(ErrorBadOrderField)
+	}
+
+	return nil
+}
+
 func TestFindUsers(t *testing.T) {
 	s := httptest.NewServer(SearchServer())
 	c := &SearchClient{
@@ -130,7 +164,7 @@ func TestFindUsers(t *testing.T) {
 	req := SearchRequest{
 		Limit:      1,
 		Offset:     0,
-		Query:      "Owen",
+		Query:      "O",
 		OrderField: "",
 		OrderBy:    0,
 	}
