@@ -9,51 +9,44 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
+const DatasetFilename = "dataset.xml"
 const Token = "test token"
-
-type Entry struct {
-	ID        int    `xml:"id"`
-	FirstName string `xml:"first_name"`
-	Lastname  string `xml:"last_name"`
-}
 
 type Dataset struct {
 	Version string  `xml:"version,attr"`
 	Entries []Entry `xml:"row"`
 }
 
+type Entry struct {
+	ID        int    `xml:"id"`
+	FirstName string `xml:"first_name"`
+	LastName  string `xml:"last_name"`
+	Age       int    `xml:"age"`
+	About     string `xml:"about"`
+	Gender    string `xml:"gender"`
+}
+
 func SearchServer() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		sreq, err := parseRequest(r)
+		req, err := parseRequest(r)
 		if err != nil {
 			fmt.Printf("read url params error: %v\n", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		content, err := ioutil.ReadFile("dataset.xml")
+		dataset, err := dataset(DatasetFilename)
 		if err != nil {
-			fmt.Printf("read dataset error: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		dataset := new(Dataset)
-		if err := xml.Unmarshal(content, &dataset); err != nil {
-			fmt.Printf("dataset parse error %v\n", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		fmt.Println(dataset.Entries)
-		fmt.Println(sreq)
-
-		resp := SearchUsers(dataset, sreq)
-		fmt.Println(resp)
+		resp := SearchUsers(dataset, req)
 		json.NewEncoder(w).Encode(resp.Users)
 	}
 }
@@ -88,15 +81,43 @@ func parseRequest(r *http.Request) (*SearchRequest, error) {
 	}, nil
 }
 
-func SearchUsers(dataset *Dataset, r *SearchRequest) *SearchResponse {
+func dataset(filename string) (*Dataset, error) {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Printf("read dataset error: %v\n", err)
+		return nil, err
+	}
+
+	dataset := new(Dataset)
+	if err := xml.Unmarshal(content, &dataset); err != nil {
+		fmt.Printf("dataset parse error %v\n", err)
+		return nil, err
+	}
+
+	return dataset, nil
+}
+
+func SearchUsers(d *Dataset, r *SearchRequest) *SearchResponse {
+
+	var users []User
+
+	for _, e := range d.Entries {
+		if strings.Contains(e.FirstName, r.Query) ||
+			strings.Contains(e.LastName, r.Query) ||
+			strings.Contains(e.About, r.Query) {
+
+			users = append(users, User{
+				Id:     e.ID,
+				Name:   fmt.Sprintf("%s %s", e.FirstName, e.LastName),
+				Age:    e.Age,
+				About:  e.About,
+				Gender: e.Gender,
+			})
+		}
+	}
+
 	return &SearchResponse{
-		Users: []User{{
-			Id:     0,
-			Name:   "qwe",
-			Age:    0,
-			About:  "qwe",
-			Gender: "qwe",
-		}},
+		Users:    users,
 		NextPage: false,
 	}
 }
@@ -123,8 +144,8 @@ func TestFindUsers(t *testing.T) {
 			args: args{req: SearchRequest{
 				Limit:      2,
 				Offset:     0,
-				Query:      "test query",
-				OrderField: "test order fields",
+				Query:      "Owen",
+				OrderField: "",
 				OrderBy:    0,
 			}},
 			want: &SearchResponse{
