@@ -7,14 +7,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 )
 
 const DatasetFilename = "dataset.xml"
-const Token = "test token"
 
 type Dataset struct {
 	Version string  `xml:"version,attr"`
@@ -124,51 +122,28 @@ func SearchUsers(d *Dataset, r *SearchRequest) *SearchResponse {
 
 func TestFindUsers(t *testing.T) {
 	s := httptest.NewServer(SearchServer())
+	c := &SearchClient{
+		AccessToken: "token",
+		URL:         s.URL,
+	}
 
-	type fields struct {
-		AccessToken string
-		URL         string
+	req := SearchRequest{
+		Limit:      1,
+		Offset:     0,
+		Query:      "Owen",
+		OrderField: "",
+		OrderBy:    0,
 	}
-	type args struct {
-		req SearchRequest
+
+	resp, err := c.FindUsers(req)
+	if err != nil {
+		t.Error(err)
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *SearchResponse
-		wantErr bool
-	}{
-		{name: "valid",
-			fields: fields{AccessToken: Token, URL: s.URL},
-			args: args{req: SearchRequest{
-				Limit:      2,
-				Offset:     0,
-				Query:      "Owen",
-				OrderField: "",
-				OrderBy:    0,
-			}},
-			want: &SearchResponse{
-				Users:    []User{},
-				NextPage: false,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv := &SearchClient{
-				AccessToken: tt.fields.AccessToken,
-				URL:         tt.fields.URL,
-			}
-			got, err := srv.FindUsers(tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindUsers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FindUsers() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	respUser := resp.Users[0]
+
+	if !strings.Contains(respUser.Name, req.Query) &&
+		!strings.Contains(respUser.About, req.Query) {
+		t.Error("wrong user")
 	}
 }
